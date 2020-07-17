@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: msr-service
+spec:
+  type: NodePort
+  selector:
+    app: IS
+  ports:
+    - port: 5555
+      targetPort: 5555
+      nodePort: 30007
+---      
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: msr-deployment
+  labels:
+    app:  IS
+  annotations:
+    description: Integration server Pod deployment
+spec:
+  replicas: 2            # The desired number of Pods
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0%
+      maxSurge: 25%
+  minReadySeconds: 0     # min number of seconds a newly created Pod waits after passing readiness checks  
+  progressDeadlineSeconds: 600
+  selector:              # The spec.selector is used by this Deployment to identify the Pods its managing
+    matchLabels:         # The spec.selector.matchLabels must match one of the labels in spec.template.metadata.labels
+      app: IS
+
+
+
+  template:
+    metadata:
+      labels:
+        app: IS  # Labels must be assigned to the Pod controlled by a Deployment and targeted by a service.
+    spec:
+      containers:
+        - name: integration-server
+          image: pratibha0224hub/isrepo:10.5.0.3
+          ports:
+            - containerPort: 5555
+          readinessProbe:     # A Readiness Probe enables a container to report back to the Deployment that it's ready.
+            httpGet:          # So, during a rollingUpdate, the deployment controller can correctly detect a bad rollout.
+              path: /
+              port: 5555
+              httpHeaders:
+              - name : Authorization
+                value: Basic QWRtaW5pc3RyYXRvcjptYW5hZ2U=
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: regcred
+
